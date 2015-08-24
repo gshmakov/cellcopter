@@ -1,0 +1,805 @@
+
+<!--
+
+		Author: Gennady Shmakov <gshmakov@gmail.com>
+		Copyright (c) 2015 Gennady Shmakov. All rights reserved. 
+
+		This file relies on cellcopter_server.js to be run on server.
+		
+-->
+
+
+<!DOCTYPE html>
+ 
+<html>
+<head>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
+<script>document.ontouchmove=function(e){e.preventDefault();}</script>
+<style>.main{border-style:solid; border-width:1px; vertical-align:top;}</style>
+</head>
+
+<body>
+
+<table class="main" style="position:absolute; left:2px; top:2px; z-index:3;">
+
+	<tr> <!-- Top row = MENU 0 -->
+		<td>
+			<table class="main" style="background-color:#b0e0e6;"> 
+				<tr>
+					<td>
+						<button id="bUDPSockToggle" type="button" style="background-color:red;" onclick="UDPSockToggle()">UDP</button>
+					</td>
+					<td>
+						<table class="main">
+							<tr>
+								<td style="font-size:15px;">Q/S:</td>
+								<td id="FrQ" style="width:40px; font-size:15px;">0</td>
+								<td style="font-size:15px;">/</td>
+								<td id="FrS" style="width:40px; font-size:15px;">0</td>
+								<td><button type="button" style="background-color:grey;" onclick="FrameStatReset()">Reset</button></td>
+										<script>function FrameStatReset() {document.getElementById("FrQ").innerHTML="0";document.getElementById("FrS").innerHTML="0";}</script>
+								<td style="font-size:15px;">Cam</td>
+								<td><select id="CamFrRes" onchange="CamResChanged(this.value)">
+										<option value="1">160x120</option>
+										<option value="2" selected>320x240</option>
+										<option value="3">352x288</option>
+										</select></td>
+								<td><input type="number" id="CamXCLK" size="3" step="1" min="8" max="50" value="25"></td>
+								<td><button type="button" style="background-color:orange;" onclick="CamXCLKChanged()">XCLK</button></td>
+							</tr>
+						</table>
+					</td>
+					<td><button id="bAUXShowHide" type="button" style="background-color:aqua;" onclick="AUXShowHide()">AUX</button></td>
+							<script>
+								function AUXShowHide() {
+									if (document.getElementById("AUXblock").style.display=="none") {
+										document.getElementById("AUXblock").style.display="inline";
+										document.getElementById("bAUXShowHide").style.backgroundColor="lime";
+									} else {
+										document.getElementById("AUXblock").style.display="none";
+										document.getElementById("bAUXShowHide").style.backgroundColor="aqua";
+									}
+								}
+							</script>
+							
+					<td><button id="bPRSet" type="button" style="background-color:red;" onclick="PRSet()">SLOW</button></td>
+							<script>
+								function PRSet() {
+									if (document.getElementById("bPRSet").style.backgroundColor=="red") {
+										document.getElementById("bPRSet").style.backgroundColor="lime";
+										SetStepPitchRoll=StepPitchRoll20;
+										document.getElementById("status").innerHTML+="SLOW CONTROLS"+"<br>";
+									} else {
+										document.getElementById("bPRSet").style.backgroundColor="red";
+										SetStepPitchRoll=StepPitchRoll80;
+										document.getElementById("status").innerHTML+="FAST CONTROLS"+"<br>";
+									}
+								}
+							</script>
+					<td><textarea id="log" style="resize:none;" cols="14" rows="1" readonly></textarea></td>
+					<td><button type="button" style="background-color:grey;" onclick="StatusClean()">Log Clean</button></td>
+							<script>function StatusClean() {document.getElementById("status").innerHTML="";}</script>
+				</tr>
+			</table>
+		</td>
+	</tr> <!-- Top row = MENU 0 -->	
+	
+	<tr id="AUXblock" valign="top" style="display:none;"> <!-- Top row = MENU 1 -->
+		<td>
+			<table class="main" style="background-color:#b0e0e6;">
+				<tr>
+					<td>
+						<table>
+							<tr>
+								<td><textarea id="AUX_3WS" rows="1" cols="30" style="resize:none;">2d_3WSSet:835,500,330;</textarea></td>
+								<td><button type="button" style="background-color:orange;" onclick="AUX_Signal(1)">Set</button></td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<table>
+							<tr>
+								<td><button type="button" style="background-color:orange;" onclick="AUX_Signal(4)">CHx_CAL</button></td>
+								<td><button type="button" style="background-color:orange;" onclick="AUX_Signal(3)">GPS/Atti</button></td>
+								<td>GSM:</td>
+								<td><button type="button" style="background-color:orange;" onclick="AUX_Signal(6)">ON</button></td>
+								<td><button type="button" style="background-color:orange;" onclick="AUX_Signal(7)">OFF</button></td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+		</td>
+		<td>
+			<table class="main" style="background-color:#b0e0e6;">
+				<tr>
+					<td>
+						<table>
+							<tr>
+								<td><textarea id="AUX_CamCBS" rows="1" cols="20" style="resize:none;">2d_CamCBS:0,0,0;</textarea></td>
+								<td><button type="button" style="background-color:orange;" onclick="AUX_Signal(8)">Set</button></td>
+							</tr>
+							<tr>
+								<td><input type="number" id="AUX_CamQTY" size="3" step="1" min="1" max="90" value="20"></td>
+								<td><button type="button" style="background-color:orange;" onclick="AUX_Signal(9)">Set</button></td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+		</td>
+	</tr> <!-- Top row = MENU 1 -->				
+	
+</table>
+
+<div id="map" style="position:absolute; left:2px; top:54px; width:340px; height:300px; z-index:2; border-style:solid; border-width:1px;"></div>
+<div id="status" style="position:absolute; top:54px; width:320px; height:240px; z-index:2; font-family:sans-serif; font-size:10px; text-align:right; color:green;"></div>
+
+<table id="tel_1" style="position:absolute; left:370px; z-index:1; border-style:solid; border-width:1px;">
+	<tr>
+		<td id="d2iGSM" align="left" colspan="3" style="background-color:grey;">GSM:</td>
+		<td id="GSMLOG" align="left" colspan="2"></td>
+	</tr>
+	<tr>
+		<td align="center">Pitch</td>
+		<td align="center">Roll</td>
+		<td align="center">Throttle</td>
+		<td align="center">Yaw</td>
+		<td align="center"></td>
+	</tr>
+	<tr>
+		<td id="i2dPit" style="text-align:center; padding:0px 5px 0px 5px">0</td>
+		<td id="i2dRol" style="text-align:center; padding:0px 5px 0px 5px">0</td>
+		<td id="i2dThr" style="text-align:center; padding:0px 5px 0px 5px">0</td>
+		<td id="i2dYaw" style="text-align:center; padding:0px 5px 0px 5px">0</td>
+		<td align="center">LiPo3</td>
+	</tr>
+	<tr>
+		<td id="d2iPit" style="text-align:center; padding:0px 5px 0px 5px">-</td>
+		<td id="d2iRol" style="text-align:center; padding:0px 5px 0px 5px">-</td>
+		<td id="d2iThr" style="text-align:center; padding:0px 5px 0px 5px">-</td>
+		<td id="d2iYaw" style="text-align:center; padding:0px 5px 0px 5px">-</td>
+		<td id="rawLiPo_3" style="text-align:center; padding:0px 5px 0px 5px">-</td>
+	</tr>
+	<tr>
+		<td align="center">Status</td>
+		<td align="center">nSvs</td>
+		<td align="center">Alt_sea</td>
+		<td align="center">Len[m]</td>
+		<td align="center">km/h</td>
+	</tr>
+	<tr>
+		<td id="gpsSta" style="text-align:center; padding:0px 5px 0px 5px">0</td>
+		<td id="gpsSvs" style="text-align:center; padding:0px 5px 0px 5px">0</td>
+		<td id="gpsSea" style="text-align:center; padding:0px 5px 0px 5px">0</td>
+		<td id="gpsLen" style="text-align:center; padding:0px 5px 0px 5px">-</td>
+		<td id="gpsKmh" style="text-align:center; padding:0px 5px 0px 5px">-</td>
+	</tr>
+	
+</table>
+
+<canvas id="CameraCanvas" width="416" height="312" style="position:absolute; top:54px; left:360px; z-index:0; border-style:solid; border-width:1px;">No HTML5</canvas>
+
+<canvas id="FailSafeCanvas" width="80" height="80" style="position:absolute; left:500px; z-index:0; background-color:red; border-style:solid; border-width:1px;">No HTML5</canvas>
+<canvas id="RunInitCanvas" width="80" height="80" style="position:absolute; left:400px; z-index:0; background-color:orange; border-style:solid; border-width:1px;">No HTML5</canvas>
+<canvas id="UpdateCanvas" width="100" height="100" style="position:absolute; z-index:0; background-color:blue; border-style:solid; border-width:1px;">No HTML5</canvas>
+
+<canvas id="CtrlPadLeft" style="position:absolute; left:5px; z-index:2; background-color:orange;">No HTML5</canvas>
+<canvas id="ThrottlePad" width="90" height="300" style="position:absolute; z-index:2; background-color:green; border-style:solid; border-width:1px;">No HTML5</canvas>
+<canvas id="YawPad" width="300" height="90" style="position:absolute; z-index:2; background-color:skyblue; border-style:solid; border-width:1px;">No HTML5</canvas>
+
+</body>
+</html> 
+
+<!-- Yandex maps scripting -->
+<script> 
+var myMap;
+var myPolyline;
+var myPosition;
+var myHome;
+var myHomeLine;
+
+ymaps.ready(init);
+
+function init () {
+	myMap=new ymaps.Map('map', {
+		center:[55.863652,37.116814], 
+		zoom:17,
+		type:'yandex#hybrid',
+		controls:["typeSelector","zoomControl"]
+		});
+	
+	B_FixHome=new ymaps.control.Button({
+		data: {
+			content: "H",
+			title: "FixHome"
+		},
+		options: {
+			float: "left",
+			floatIndex: 0,
+			selectOnClick: false
+		}
+	});
+	B_FixHome.events.add('click',mapFixHome);
+	myMap.controls.add(B_FixHome);
+/*	
+	B1=new ymaps.control.Button({
+		data: {
+			content: "R",
+			title: "Add route"
+		},
+		options: {
+			float: "left",
+			floatIndex: 0,
+			selectOnClick: true
+		}
+	});
+	B1.events.add('select',mapAddRoute);
+	B1.events.add('deselect',mapDeleteRoute);
+	myMap.controls.add(B1); 
+//*/
+	updatePlacemark(55.863652,37.116814);
+}
+function updatePlacemark(xLat,xLon) {
+	if (myPosition!=null) {myMap.geoObjects.remove(myPosition);}
+	if (myHomeLine!=null) {myMap.geoObjects.remove(myHomeLine);}
+	
+	myPosition=new ymaps.Placemark([xLat,xLon],{},{
+		preset:"islands#circleDotIcon",
+		iconColor: '#ff0000'
+	});
+	myMap.geoObjects.add(myPosition);
+	myMap.setCenter([xLat,xLon]);
+	
+	if (myHome!=null) {
+		myHomeLine=new ymaps.Polyline([myHome.geometry.getCoordinates(),myPosition.geometry.getCoordinates()], {}, {
+				strokeColor: "#00ff0099",
+				strokeWidth: 4,
+			});
+		myMap.geoObjects.add(myHomeLine);
+	
+		document.getElementById("gpsLen").innerHTML=ymaps.coordSystem.geo.getDistance(myHome.geometry.getCoordinates(),myPosition.geometry.getCoordinates()).toFixed(0);
+	}
+}
+function mapFixHome() {
+	if (myHome!=null) {myMap.geoObjects.remove(myHome);}
+	if (myHomeLine!=null) {myMap.geoObjects.remove(myHomeLine);}
+	
+	myHome=new ymaps.Placemark(myMap.getCenter(),{},{
+		preset:"islands#circleDotIcon",
+		iconColor: '#00ff00'
+	});
+	myMap.geoObjects.add(myHome);
+	
+	myHomeLine=new ymaps.Polyline([myHome.geometry.getCoordinates(),myPosition.geometry.getCoordinates()], {}, {
+			strokeColor: "#00ff0099",
+			strokeWidth: 4,
+		});
+	myMap.geoObjects.add(myHomeLine);
+	
+	document.getElementById("gpsLen").innerHTML=ymaps.coordSystem.geo.getDistance(myHome.geometry.getCoordinates(),myPosition.geometry.getCoordinates()).toFixed(0);
+}
+
+//*
+function mapAddRoute() {
+	if (myPolyline==null) {
+		myPolyline=new ymaps.Polyline([myMap.getCenter()], {}, {
+			strokeColor: "#00000088",
+			strokeWidth: 4,
+			editorMaxPoints: 50,
+			editorMenuManager: function(items) {
+				items.push({
+					title: "Удалить линию",
+					onClick: function() {
+						myMap.geoObjects.remove(myPolyline);
+						myPolyline=null;
+						B1.deselect();
+					}
+				});
+				return items;
+			}
+		});
+		myMap.geoObjects.add(myPolyline);
+		myPolyline.editor.startEditing();
+	} else {myPolyline.editor.startEditing();}
+}
+function mapDeleteRoute() {
+	if (myPolyline!=null) {
+		myPolyline.editor.stopEditing();
+		if (myPolyline.geometry.getLength()==0) {
+			myMap.geoObjects.remove(myPolyline);
+			myPolyline=null;
+		}
+	}
+}
+//*/
+
+</script>
+
+<script>
+{ // ========================= GLOBAL VARS AND INIT ==========================
+	var LiPO_yellow=11.2;
+	var LiPO_red=10.5;
+	
+	var CTRL_PAD_SIZE=360;
+	
+	var THROTTLE_RIGHT_MARGIN=20;
+	var THROTTLE_BOTTM_MARGIN=170;
+	var YAW_BOTTM_MARGIN=30;
+	var UPDATE_RIGHT_MARGIN=170;
+	var UPDATE_BOTTM_MARGIN=180;
+	
+	document.getElementById("tel_1").style.top=(window.innerHeight-280).toString()+"px";
+	document.getElementById("status").style.left=(window.innerWidth-320-4).toString()+"px";
+	
+	var WS=null;
+	
+	var CamCanvas=document.getElementById("CameraCanvas");
+	var CamCanvasContext=CamCanvas.getContext("2d");
+	CamCanvas.addEventListener('touchstart',Cam_onTouch,false);
+	CamCanvas.addEventListener('touchmove',Cam_onTouch,false);
+	var Dx,TempCamW;
+	
+	
+	var FailSafeCanvas=document.getElementById("FailSafeCanvas");
+	FailSafeCanvas.style.top=(window.innerHeight-FailSafeCanvas.height-5).toString()+"px";
+	FailSafeCanvas.addEventListener('touchstart',FailSafeCanvas_onTouch,false);
+	
+	var RunInitCanvas=document.getElementById("RunInitCanvas");
+	RunInitCanvas.style.top=(window.innerHeight-RunInitCanvas.height-5).toString()+"px";
+	RunInitCanvas.addEventListener('touchstart',RunInitCanvas_onTouch,false);
+	
+	var UpdateCanvas=document.getElementById("UpdateCanvas");
+	UpdateCanvas.style.top=(window.innerHeight-UpdateCanvas.height-UPDATE_BOTTM_MARGIN).toString()+"px";
+	UpdateCanvas.style.left=(window.innerWidth-UpdateCanvas.width-UPDATE_RIGHT_MARGIN).toString()+"px";
+	UpdateCanvas.addEventListener('touchstart',UpdateCanvas_onTouch,false);
+	
+	
+	var CtrlPadLeft=document.getElementById("CtrlPadLeft");	//Pitch and Roll. Automove to center
+	CtrlPadLeft.style.top=(window.innerHeight-CTRL_PAD_SIZE-5).toString()+"px";
+	CtrlPadLeft.width=CTRL_PAD_SIZE;
+	CtrlPadLeft.height=CTRL_PAD_SIZE;
+	var CtrlPadLeft_ctx=CtrlPadLeft.getContext("2d");
+	var CtrlPadLeftRect=CtrlPadLeft.getBoundingClientRect();
+	var CtrlPadLeft_HCenter=CtrlPadLeft.width/2;
+	var CtrlPadLeft_VCenter=CtrlPadLeft.height/2;
+	CtrlPadLeft.addEventListener('touchstart',CtrlPadLeft_onTouch,false);
+	CtrlPadLeft.addEventListener('touchmove',CtrlPadLeft_onTouch,false);
+	CtrlPadLeft.addEventListener('touchend',CtrlPadLeft_onTouchEnd,false);
+	
+	
+	var ThrottlePad=document.getElementById("ThrottlePad");
+	ThrottlePad.style.top=(window.innerHeight-ThrottlePad.height-THROTTLE_BOTTM_MARGIN).toString()+"px";
+	ThrottlePad.style.left=(window.innerWidth-ThrottlePad.width-THROTTLE_RIGHT_MARGIN).toString()+"px";
+	var ThrottlePad_ctx=ThrottlePad.getContext("2d");
+	var ThrottlePadRect=ThrottlePad.getBoundingClientRect();
+	var ThrottlePad_VCenter=ThrottlePad.height/2;
+	ThrottlePad.addEventListener('touchstart',ThrottlePad_onTouch,false);
+	ThrottlePad.addEventListener('touchmove',ThrottlePad_onTouch,false);
+	ThrottlePad.addEventListener('touchend',ThrottlePad_onTouchEnd,false);
+	
+	
+	var YawPad=document.getElementById("YawPad");
+	YawPad.style.top=(window.innerHeight-YawPad.height-YAW_BOTTM_MARGIN).toString()+"px";
+	YawPad.style.left=(window.innerWidth-YawPad.width-THROTTLE_RIGHT_MARGIN).toString()+"px";
+	var YawPad_ctx=YawPad.getContext("2d");
+	var YawPadRect=YawPad.getBoundingClientRect();
+	var YawPad_HCenter=YawPad.width/2;
+	YawPad.addEventListener('touchstart',YawPad_onTouch,false);
+	YawPad.addEventListener('touchmove',YawPad_onTouch,false);
+	YawPad.addEventListener('touchend',YawPad_onTouchEnd,false);
+	
+	
+	
+	var SetPitch=500, SetRoll=500, SetThrottle=500, SetYaw=500;
+	var CurrentPitch=500, CurrentRoll=500, CurrentThrottle=500, CurrentYaw=500;
+	var QC_Pitch=500, QC_Roll=500, QC_Throttle=500, QC_Yaw=500;
+	
+	const StepPitchRoll80=0.45, StepPitchRoll20=1, StepPitchRollCustom=0.36;
+	var SetStepPitchRoll=StepPitchRollCustom; //default 1 - slow, less=more aggressive, more=less aggressive. 0.36 is full range
+	const SetStepThrottle=0.8; //default 1.5 - slow. 0.3 is full range
+	const SetStepYaw=0.8; //default 1.2 - gives good/fast YAW ctrl speed
+	
+	CtrlPadLeft_UpdateCanvas();
+	ThrottlePad_UpdateCanvas();
+	YawPad_UpdateCanvas();
+	
+	
+	setInterval(CtrlPads_SendInterval,500); //Delay in ms how often signals will be sent to device
+	setInterval(HB_toDevice,2000); //Period of sending HeartBeat signals to device.
+}
+// ========================= GLOBAL VARS AND INIT END ======================
+
+
+// ========================= TOUCH AND CONTROL EVENTS ==========================
+function Cam_onTouch(e) {
+	e.preventDefault();
+	
+	if (e.targetTouches.length==1) {	
+		CamCanvas.style.top=(e.targetTouches[0].pageY-(CamCanvas.height/2)).toString()+"px";
+		CamCanvas.style.left=(e.targetTouches[0].pageX-(CamCanvas.width/2)).toString()+"px";
+	} else if ((e.type=="touchstart")&&(e.targetTouches.length==2)) {
+		Dx=Math.abs(e.targetTouches[0].pageX-e.targetTouches[1].pageX);
+		TempCamW=CamCanvas.width;
+	}	else if ((e.type=="touchmove")&&(e.targetTouches.length==2)) {
+		CamCanvas.width=TempCamW+(Math.abs(e.targetTouches[0].pageX-e.targetTouches[1].pageX)-Dx);
+		CamCanvas.height=Math.round(CamCanvas.width*0.75);
+	}
+}
+
+function CtrlPadLeft_UpdateCanvas() {
+	
+	var H=CtrlPadLeft_HCenter+Math.round((CurrentRoll-500)*SetStepPitchRoll);
+	var V=CtrlPadLeft_VCenter+Math.round((500-CurrentPitch)*SetStepPitchRoll);
+	var QC_H=CtrlPadLeft_HCenter+Math.round((QC_Roll-500)*SetStepPitchRoll);
+	var QC_V=CtrlPadLeft_VCenter+Math.round((500-QC_Pitch)*SetStepPitchRoll);
+
+	CtrlPadLeft_ctx.clearRect(0,0,CtrlPadLeft.width,CtrlPadLeft.height);
+	
+	CtrlPadLeft_ctx.beginPath();
+	CtrlPadLeft_ctx.lineWidth="1";
+	CtrlPadLeft_ctx.strokeStyle="black";
+	CtrlPadLeft_ctx.moveTo(0,CtrlPadLeft_VCenter);
+	CtrlPadLeft_ctx.lineTo(CtrlPadLeft.width,CtrlPadLeft_VCenter);
+	CtrlPadLeft_ctx.moveTo(CtrlPadLeft_HCenter,0);
+	CtrlPadLeft_ctx.lineTo(CtrlPadLeft_HCenter,CtrlPadLeft.height);
+	CtrlPadLeft_ctx.stroke();
+	
+	CtrlPadLeft_ctx.beginPath();
+	CtrlPadLeft_ctx.lineWidth="5";
+	CtrlPadLeft_ctx.strokeStyle="green";
+	CtrlPadLeft_ctx.moveTo(CtrlPadLeft_HCenter,CtrlPadLeft_VCenter);
+	CtrlPadLeft_ctx.lineTo(H,V);
+	CtrlPadLeft_ctx.stroke();
+	CtrlPadLeft_ctx.beginPath();
+	CtrlPadLeft_ctx.arc(H,V,20,0,2*Math.PI);
+	CtrlPadLeft_ctx.stroke();
+	
+	CtrlPadLeft_ctx.beginPath();
+	CtrlPadLeft_ctx.strokeStyle="red";
+	CtrlPadLeft_ctx.arc(QC_H,QC_V,20,0,2*Math.PI);
+	CtrlPadLeft_ctx.stroke();
+}
+function CtrlPadLeft_onTouch(e) {
+	e.preventDefault();
+	var touch=e.targetTouches[0];
+	var SetHoriz=touch.pageX-CtrlPadLeftRect.left;
+	var SetVert=touch.pageY-CtrlPadLeftRect.top;
+	
+	if (SetHoriz>CTRL_PAD_SIZE) {SetHoriz=CTRL_PAD_SIZE;} else if (SetHoriz<0) {SetHoriz=0;}
+	if (SetVert>CTRL_PAD_SIZE) {SetVert=CTRL_PAD_SIZE;} else if (SetVert<0) {SetVert=0;}
+	
+	CurrentPitch=500+Math.round((CtrlPadLeft_VCenter-SetVert)/SetStepPitchRoll);
+	CurrentRoll=500+Math.round((SetHoriz-CtrlPadLeft_HCenter)/SetStepPitchRoll);
+	
+	CtrlPadLeft_UpdateCanvas();
+}
+function CtrlPadLeft_onTouchEnd(e) {
+	e.preventDefault();
+	
+	CurrentPitch=500;
+	CurrentRoll=500;
+	
+	CtrlPadLeft_UpdateCanvas();
+}
+function ThrottlePad_UpdateCanvas() {
+	
+	var CurrentV=Math.round((500-CurrentThrottle)*SetStepThrottle);
+	var QC_V=Math.round((500-QC_Throttle)*SetStepThrottle);
+	
+	ThrottlePad_ctx.clearRect(0,0,ThrottlePad.width,ThrottlePad.height);
+
+	ThrottlePad_ctx.fillStyle="yellow";
+	ThrottlePad_ctx.fillRect(0,ThrottlePad_VCenter,ThrottlePad.width,CurrentV);
+	ThrottlePad_ctx.fillStyle="lime";
+	ThrottlePad_ctx.fillRect(0,ThrottlePad_VCenter,10,QC_V);
+	
+	ThrottlePad_ctx.beginPath();
+	ThrottlePad_ctx.lineWidth="1";
+	ThrottlePad_ctx.strokeStyle="black";
+	ThrottlePad_ctx.moveTo(0,ThrottlePad_VCenter);
+	ThrottlePad_ctx.lineTo(ThrottlePad.width,ThrottlePad_VCenter);
+	ThrottlePad_ctx.stroke();
+}
+function ThrottlePad_onTouch(e) {
+	e.preventDefault();
+	var touch=e.targetTouches[0];
+	var SetVert=touch.pageY-ThrottlePadRect.top;
+	
+	if (SetVert<0) {SetVert=0;} else if (SetVert>ThrottlePad.height) {SetVert=ThrottlePad.height;}
+	CurrentThrottle=500+Math.round((ThrottlePad_VCenter-SetVert)/SetStepThrottle);
+
+	ThrottlePad_UpdateCanvas();
+}
+function ThrottlePad_onTouchEnd(e) {
+	e.preventDefault();
+	
+	CurrentThrottle=500;
+	
+	ThrottlePad_UpdateCanvas();
+}
+function YawPad_UpdateCanvas() {
+	
+	var CurrentH=Math.round((CurrentYaw-500)*SetStepYaw);
+	var QC_H=Math.round((QC_Yaw-500)*SetStepYaw);
+	
+	YawPad_ctx.clearRect(0,0,YawPad.width,YawPad.height);
+
+	YawPad_ctx.fillStyle="yellow";
+	YawPad_ctx.fillRect(YawPad_HCenter,0,CurrentH,YawPad.height);
+	YawPad_ctx.fillStyle="green";
+	YawPad_ctx.fillRect(YawPad_HCenter,0,QC_H,10);
+	
+	YawPad_ctx.beginPath();
+	YawPad_ctx.lineWidth="1";
+	YawPad_ctx.strokeStyle="black";
+	YawPad_ctx.moveTo(YawPad_HCenter,0);
+	YawPad_ctx.lineTo(YawPad_HCenter,YawPad.height);
+	YawPad_ctx.stroke();
+}
+function YawPad_onTouch(e) {
+	e.preventDefault();
+	var touch=e.targetTouches[0];
+	var SetHoriz=touch.pageX-YawPadRect.left;
+	
+	if (SetHoriz<0) {SetHoriz=0;} else if (SetHoriz>YawPad.width) {SetHoriz=YawPad.width;}
+	
+	CurrentYaw=500+Math.round((SetHoriz-YawPad_HCenter)/SetStepYaw);
+	
+	YawPad_UpdateCanvas();
+}
+function YawPad_onTouchEnd(e) {
+	e.preventDefault();
+	
+	CurrentYaw=500;
+	
+	YawPad_UpdateCanvas();
+}
+function FailSafeCanvas_onTouch(e) {
+	e.preventDefault();
+	WS_SendRequest("2d_3WSPos:2;");
+}
+function RunInitCanvas_onTouch(e) {
+	e.preventDefault();
+	AUX_Signal(5);
+}
+function UpdateCanvas_onTouch(e) {
+	e.preventDefault();
+	WS_SendRequest("2d_PRTY__:"+CurrentPitch+","+CurrentRoll+","+CurrentThrottle+","+CurrentYaw+";");
+}
+
+function CtrlPads_SendInterval() {
+	if ((SetPitch!=CurrentPitch)||(SetRoll!=CurrentRoll)||(SetThrottle!=CurrentThrottle)||(SetYaw!=CurrentYaw)) {
+		
+		document.getElementById("i2dPit").innerHTML=CurrentPitch;
+		document.getElementById("i2dRol").innerHTML=CurrentRoll;
+		document.getElementById("i2dThr").innerHTML=CurrentThrottle;
+		document.getElementById("i2dYaw").innerHTML=CurrentYaw;
+		
+		SetPitch=CurrentPitch;
+		SetRoll=CurrentRoll;
+		SetThrottle=CurrentThrottle;
+		SetYaw=CurrentYaw;
+		
+		WS_SendRequest("2d_PRTY__:"+CurrentPitch+","+CurrentRoll+","+CurrentThrottle+","+CurrentYaw+";");
+	}
+}
+
+function HB_toDevice() {
+	WS_SendRequest('2d_hb:1;');
+}
+
+// ========================= TOUCH AND CONTROL EVENTS END ======================
+
+
+// ========================= MENU EVENTS ===========================
+var JPEGbuf=new Blob();
+
+function WS_SendRequest(msg) {if (WS!=null) {WS.send(msg);}}
+
+function UDPSockToggle() {
+	if (document.getElementById("bUDPSockToggle").style.backgroundColor=="red") {
+		document.getElementById("bUDPSockToggle").style.backgroundColor="lime";
+		
+		WS=new WebSocket("ws://8.8.8.8:8800/"); //websocket ip:port
+		WS.binaryType='blob';
+		
+		WS.onopen=function() {
+			document.getElementById("status").innerHTML+="WebSocket connected<br>";
+			WS_SendRequest('runUDP');
+		}
+		
+		WS.onmessage=function(msg) {
+			if (msg.data instanceof Blob) { //If BLOB received then it's JPEG portion
+				JPEGbuf=new Blob([JPEGbuf,msg.data]);
+			} else if (msg.data.indexOf("2i_")===0) { //if text data then parse
+        ParseMSG(msg.data);
+      } else if (msg.data==";GSHFrame") {
+				var url=URL.createObjectURL(JPEGbuf);
+				var img=new Image();
+				img.onload=function() {
+					CamCanvasContext.drawImage(this,0,0,CamCanvas.width,CamCanvas.height);
+				};
+				img.onerror=function() {
+					console.log('wrong image');
+				};
+				img.src=url;
+				document.getElementById("FrQ").innerHTML=Number(document.getElementById("FrQ").innerHTML)+1; //Increment counter
+			  document.getElementById("FrS").innerHTML=JPEGbuf.size; //Report current frame size
+				JPEGbuf=new Blob();
+			}
+		}
+		
+		WS.onclose=function() {
+			document.getElementById("bUDPSockToggle").style.backgroundColor="red";
+			document.getElementById("status").innerHTML+="!WebSocket disconnected!<br>";
+			WS=null;
+		}
+		WS.onerror=function() {document.getElementById("status").innerHTML+="ERROR<br>";}
+	} else {
+		WS.close();
+	}
+}
+
+function ParseMSG(data) {
+	switch (data) { //Parse data received from device
+		
+		case "2i_hb;GSH":
+			if (document.getElementById("log").innerHTML.length>6) {
+				document.getElementById("log").innerHTML="";
+			}
+			document.getElementById("log").innerHTML+="h";
+		break;
+		
+		default:
+			switch (data.split(":")[0]) {
+							
+				case "2i_PRTY__": //Pitch,Roll,Throttle,Yaw set by iPad
+					QC_Pitch=parseInt(data.split(":")[1].split(",")[0]);
+					QC_Roll=parseInt(data.split(":")[1].split(",")[1]);
+					QC_Throttle=parseInt(data.split(":")[1].split(",")[2]);
+					QC_Yaw=parseInt(data.split(":")[1].split(",")[3]);
+			
+					document.getElementById("d2iPit").innerHTML=QC_Pitch;
+					document.getElementById("d2iRol").innerHTML=QC_Roll;
+					document.getElementById("d2iThr").innerHTML=QC_Throttle;
+					document.getElementById("d2iYaw").innerHTML=QC_Yaw;
+				
+					CtrlPadLeft_UpdateCanvas();
+					ThrottlePad_UpdateCanvas();
+					YawPad_UpdateCanvas();
+				break;
+			
+				case "2i_ADCdat": //LiPo 3S ADC voltage values
+					var S3=parseFloat(data.split(":")[1].split(",")[0]);
+					
+					document.getElementById("rawLiPo_3").innerHTML=S3;
+				
+					if ((S3<LiPO_yellow)&&(S3>=LiPO_red)) {document.getElementById("rawLiPo_3").style.backgroundColor="yellow";}
+					else if (S3<LiPO_red) {document.getElementById("rawLiPo_3").style.backgroundColor="red";}
+					else {document.getElementById("rawLiPo_3").style.backgroundColor="lime";}
+				break;
+				
+				case "2i_GPS": //GPS data
+					switch (data.split(":")[1].split(",")[0]) {
+						case "$GPGGA": //if GGA data
+						
+						var raw_Lat=parseFloat(data.split(":")[1].split(",")[2]); //Raw lattitude
+						var raw_Lon=parseFloat(data.split(":")[1].split(",")[4]); //Raw longitude
+						var raw_Status=data.split(":")[1].split(",")[6]; //Raw Status. //0=Invalid, 1=2D/3D, 2=DFPS, 6=Dead Reckoning
+						var raw_SVnum=data.split(":")[1].split(",")[7]; //Number of SVs used for Navigation
+						var raw_AltSea=data.split(":")[1].split(",")[9]; //Altitude above sea level
+						//var raw_AltGeo=data.split(":")[1].split(",")[11]; //Geoid separation
+						
+						var dd_Lat=(Math.floor(raw_Lat/100)+(((raw_Lat/100)-Math.floor(raw_Lat/100))*100/60)).toFixed(6);
+						var dd_Lon=(Math.floor(raw_Lon/100)+(((raw_Lon/100)-Math.floor(raw_Lon/100))*100/60)).toFixed(6);
+						
+						//Update GUI
+						document.getElementById("gpsSta").innerHTML=raw_Status;
+						document.getElementById("gpsSvs").innerHTML=raw_SVnum;
+						document.getElementById("gpsSea").innerHTML=raw_AltSea;
+						//document.getElementById("gpsGeo").innerHTML=raw_AltGeo;
+						
+						if ((!isNaN(raw_Lat))&&(!isNaN(raw_Lon))) {updatePlacemark(dd_Lat,dd_Lon);}
+						
+						break;
+						
+						case "$GPVTG":
+							document.getElementById("gpsKmh").innerHTML=data.split(":")[1].split(",")[7]; //Raw speed over ground in km/h
+						break;
+					
+					}
+				break;
+				
+				case "2i_GSM": //GSM signal quality. http://m2msupport.net/m2msupport/atcsq-signal-quality/
+					var GSM_Signal=parseInt(data.split(":")[1].split(",")[0]);
+					document.getElementById("d2iGSM").innerHTML="GSM:"+data.split(":")[1];
+					
+					if (document.getElementById("GSMLOG").innerHTML.length>6) {
+						document.getElementById("GSMLOG").innerHTML="";
+					}
+					document.getElementById("GSMLOG").innerHTML+="+";
+					
+					if (GSM_Signal<=9) {document.getElementById("d2iGSM").style.backgroundColor="red";}
+					else if ((GSM_Signal>9)&&(GSM_Signal<=14)) {document.getElementById("d2iGSM").style.backgroundColor="yellow";}
+					else if ((GSM_Signal>14)&&(GSM_Signal<=19)) {document.getElementById("d2iGSM").style.backgroundColor="green";}
+					else if (GSM_Signal>19) {document.getElementById("d2iGSM").style.backgroundColor="lime";}
+					
+				break;
+				
+				default:
+					document.getElementById("status").innerHTML+="UDP:"+data+"<br>";
+				break;
+			}
+		break;
+	}
+}
+
+function CamResChanged(val) {
+	switch(val) {
+	
+		case "1":
+			WS_SendRequest("2d_CamRes:160;");
+		break;
+	
+		case "2":
+			WS_SendRequest("2d_CamRes:320;");
+		break;
+		
+		case "3":
+			WS_SendRequest("2d_CamRes:352;");
+		break;
+	}
+}
+function CamXCLKChanged() {
+	WS_SendRequest("2d_CamXCL:"+document.getElementById("CamXCLK").value+";");
+}
+
+
+function AUX_Signal(v) {
+	switch (v) {
+	
+		case 1:
+			WS_SendRequest(document.getElementById("AUX_3WS").value);
+		break;
+		
+		case 3:
+			WS_SendRequest("2d_3WSPos:1;");
+		break;
+		
+		case 4:
+			WS_SendRequest("2d_CHxCal:1;");
+		break;
+		
+		case 5:
+			WS_SendRequest("2d_RunIni:1;");
+			CurrentThrottle=500;
+			ThrottlePad_UpdateCanvas();
+		break;
+		
+		case 6:
+			WS_SendRequest("2d_GSMLev:1;");
+		break;
+		
+		case 7:
+			document.getElementById("d2iGSM").style.backgroundColor="grey";
+			WS_SendRequest("2d_GSMLev:0;");
+		break;
+		
+		case 8:
+			WS_SendRequest(document.getElementById("AUX_CamCBS").value);
+		break;
+		
+		case 9:
+			WS_SendRequest("2d_CamQTY:"+document.getElementById("AUX_CamQTY").value+";");
+		break;
+		
+	}
+}
+// ========================= MENU EVENTS END =======================
+	
+</script>
